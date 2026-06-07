@@ -1,0 +1,16 @@
+rules_version = '2';
+
+// Development-friendly rules so catalog sync works without Firebase Auth.
+// Tighten these before public release (e.g. require signed-in admin).
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /catalog_items/{itemId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    match /appliance_configs/{itemId} {
+      allow read: if true;
+      allow write: if true;
+    }
+  }
+}

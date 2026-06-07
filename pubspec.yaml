@@ -1,0 +1,40 @@
+name: solar_quotation_app
+description: Solar sales quotation app matching your Excel workbook and PDF format.
+publish_to: 'none'
+version: 1.1.0+2
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  intl: ^0.20.2
+  pdf: ^3.11.3
+  printing: ^5.14.2
+  path_provider: ^2.1.5
+  firebase_core: ^4.10.0
+  cloud_firestore: ^6.5.0
+  image_picker: ^1.2.2
+  firebase_storage: ^13.4.2
+  shared_preferences: ^2.5.5
+  share_plus: ^12.0.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/app_logo.png"
+  adaptive_icon_background: "#FFFFFF"          # White background for Android
+  adaptive_icon_foreground: "assets/images/app_logo.png" # Your logo on top
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
