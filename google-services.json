@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "283004439034",
+    "project_id": "sses-solar-quote",
+    "storage_bucket": "sses-solar-quote.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:283004439034:android:f02fa23f3c15c7fd397c43",
+        "android_client_info": {
+          "package_name": "com.solarquotation.solar_quotation_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBS6XQbBCqW7pEtDzWl4us9Awrwjya_dsE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

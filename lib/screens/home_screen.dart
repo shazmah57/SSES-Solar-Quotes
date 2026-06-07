@@ -3,8 +3,9 @@ import '../constants/app_colors.dart';
 import '../theme/app_surfaces.dart';
 import 'load_calculation_screen.dart';
 import 'battery_backup_screen.dart';
-import 'quotation_form_screen.dart'; 
-import '../services/app_settings_service.dart'; 
+import 'quotation_form_screen.dart';
+import 'quote_admin_panel_screen.dart';
+import '../services/app_settings_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -34,27 +35,30 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'SSES Solar Quotes',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            letterSpacing: -0.5,
+                    GestureDetector(
+                      onTap: () => _showAdminLogin(context),
+                      child: const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'SSES Solar Quotes',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              letterSpacing: -0.5,
+                            ),
                           ),
-                        ),
-                        SizedBox(height: 2),
-                        Text(
-                          'Professional Engineering Suite',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.white70,
+                          SizedBox(height: 2),
+                          Text(
+                            'Professional Engineering Suite',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.white70,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                     // PREMIUM SEGMENTED THEME STRIP
                     Container(
@@ -121,6 +125,67 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showAdminLogin(BuildContext context) {
+    final pwCtrl = TextEditingController();
+    String? errorText;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDState) => AlertDialog(
+          title: const Text('Admin Panel'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Enter password to access the Admin Panel.'),
+              const SizedBox(height: 12),
+              TextField(
+                controller: pwCtrl,
+                obscureText: true,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  border: const OutlineInputBorder(),
+                  errorText: errorText,
+                ),
+                onSubmitted: (_) {
+                  if (pwCtrl.text == 'admin123') {
+                    Navigator.pop(ctx);
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (_) => const QuoteAdminPanelScreen()),
+                    );
+                  } else {
+                    setDState(() => errorText = 'Invalid password.');
+                  }
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () {
+                if (pwCtrl.text == 'admin123') {
+                  Navigator.pop(ctx);
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                        builder: (_) => const QuoteAdminPanelScreen()),
+                  );
+                } else {
+                  setDState(() => errorText = 'Invalid password.');
+                }
+              },
+              child: const Text('Login'),
+            ),
+          ],
+        ),
       ),
     );
   }

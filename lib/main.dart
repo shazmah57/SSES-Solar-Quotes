@@ -7,6 +7,7 @@ import 'constants/app_text_styles.dart';
 import 'screens/home_screen.dart';
 import 'services/app_settings_service.dart';
 import 'services/catalog_service.dart';
+import 'services/admin_data_service.dart';
 import 'services/quotation_storage_service.dart';
 import 'services/terms_service.dart';
 
@@ -14,6 +15,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AppSettingsService.instance.init();
   await TermsService.instance.init();
+  await AdminDataService.instance.init();
   await QuotationStorageService.instance.init();
   await CatalogService.instance.init();
   runApp(const SolarQuotationApp());

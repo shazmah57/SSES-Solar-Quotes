@@ -51,7 +51,7 @@ class QuotationCalculator {
         item:
             'Balance of System (AC Cables & DC Cables, SPDs, Circuit Breakers, PVC pipes & Allied Accessories)',
         makeDescription: CatalogData.balanceOfSystemDescription,
-        quantityLabel: 'Estimated',
+        quantityLabel: 'Est',
         unitPrice: q.bosUnitPrice,
         lineTotal: q.bosUnitPrice,
       ),

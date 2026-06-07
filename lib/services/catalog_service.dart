@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 
 import '../data/catalog_data.dart';
 import '../firebase_options.dart';
+import 'admin_data_service.dart';
 import 'branding_service.dart';
 import 'terms_service.dart';
 
@@ -179,6 +180,7 @@ class CatalogService {
       await BrandingService.instance.init();
       await BrandingService.instance.downloadFromCloud();
       await TermsService.instance.onCloudConnected();
+      await AdminDataService.instance.connectCloud();
     } on FirebaseException catch (e) {
       cloudInitError.value = 'Firebase error: ${e.message ?? e.code}';
     } catch (e, st) {

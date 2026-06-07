@@ -7,6 +7,7 @@ import 'package:printing/printing.dart';
 
 import '../constants/app_assets.dart';
 import '../constants/app_colors.dart';
+import 'admin_data_service.dart';
 import 'letterhead_pdf.dart';
 import '../constants/app_dimens.dart';
 import '../constants/app_text_styles.dart';
@@ -17,6 +18,14 @@ import 'terms_service.dart';
 class PdfService {
   static final _dateFormat = DateFormat('dd-MM-yyyy');
   static final _currency = NumberFormat('#,##0', 'en_US');
+
+  static List<String> get _activeTermTexts {
+    final adminTerms = AdminDataService.instance.activeTerms;
+    if (adminTerms.isNotEmpty) {
+      return adminTerms.map((t) => t.description).toList();
+    }
+    return TermsService.instance.texts;
+  }
 
   static Future<Uint8List> buildQuotationPdf(QuotationDraft draft) async {
     final pdf = pw.Document();
@@ -126,11 +135,11 @@ class PdfService {
             ),
           ),
           pw.SizedBox(height: 4),
-          for (var i = 0; i < TermsService.instance.texts.length; i++)
+          for (var i = 0; i < _activeTermTexts.length; i++)
             pw.Padding(
               padding: const pw.EdgeInsets.only(bottom: 3),
               child: pw.Text(
-                '${i + 1}- ${TermsService.instance.texts[i]}',
+                '${i + 1}- ${_activeTermTexts[i]}',
                 style: AppTextStyles.pdf(fontSize: AppDimens.pdfSmall),
               ),
             ),
@@ -276,7 +285,7 @@ class PdfService {
               style: headerStyle,
               align: pw.TextAlign.center,
             ),
-            _cell('Quantity', style: headerStyle, align: pw.TextAlign.center),
+            _cell('Qty', style: headerStyle, align: pw.TextAlign.center),
             _cell(
               'Unit Price\nPKR',
               style: headerStyle,
