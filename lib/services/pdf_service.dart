@@ -32,6 +32,8 @@ class PdfService {
     final letterhead = await LetterheadPdf.loadLetterheadImage();
     final lines = draft.lines;
     final total = draft.grandTotal;
+    final hasDiscount = draft.hasDiscount;
+    final discounted = draft.discountedPrice;
     final warranties = draft.warranties;
 
     final topMargin = letterhead != null ? AppAssets.pdfContentTopMargin : 36.0;
@@ -49,7 +51,6 @@ class PdfService {
           theme: AppTextStyles.pdfTheme,
           buildBackground: (context) {
             if (letterhead == null) return pw.SizedBox();
-            // Full-page letterhead (image is already A4); no extra stretch logic needed.
             return pw.FullPage(
               ignoreMargins: true,
               child: pw.Image(letterhead, fit: pw.BoxFit.fill),
@@ -84,6 +85,8 @@ class PdfService {
           pw.SizedBox(height: 10),
           _itemsTable(lines),
           pw.SizedBox(height: 8),
+          
+          // Total Amount - GREEN background, BLACK text
           pw.Align(
             alignment: pw.Alignment.centerRight,
             child: pw.Container(
@@ -92,22 +95,54 @@ class PdfService {
                 vertical: 6,
               ),
               decoration: pw.BoxDecoration(
-                color: AppColors.pdfTableTotalFill,
+                color: AppColors.pdfTableHeaderFill,
                 border: pw.Border.all(
                   color: AppColors.pdfTableBorder,
                   width: 0.75,
                 ),
               ),
               child: pw.Text(
-                'Total Amount = PKR ${_currency.format(total)}/-',
+                hasDiscount 
+                    ? 'Total Amount = PKR ${_currency.format(total)}/-'
+                    : 'Total Amount = PKR ${_currency.format(total)}/-',
                 style: AppTextStyles.pdf(
                   fontSize: AppDimens.pdfTotal,
                   fontWeight: pw.FontWeight.bold,
-                  color: AppColors.pdfTableTextOnFill,
+                  color: PdfColors.black,
                 ),
               ),
             ),
           ),
+          
+          // Discounted Total - GREEN background, BLACK text
+          if (hasDiscount) ...[
+            pw.SizedBox(height: 4),
+            pw.Align(
+              alignment: pw.Alignment.centerRight,
+              child: pw.Container(
+                padding: const pw.EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: pw.BoxDecoration(
+                  color: AppColors.pdfTableHeaderFill,
+                  border: pw.Border.all(
+                    color: AppColors.pdfTableBorder,
+                    width: 0.75,
+                  ),
+                ),
+                child: pw.Text(
+                  'Discounted Total = PKR ${_currency.format(discounted)}/-',
+                  style: AppTextStyles.pdf(
+                    fontSize: AppDimens.pdfTotal,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.black,
+                  ),
+                ),
+              ),
+            ),
+          ],
+          
           pw.SizedBox(height: 16),
           pw.Text(
             'Warranty:',
@@ -176,7 +211,6 @@ class PdfService {
     );
   }
 
-  /// Optional print preview (not used for default download flow).
   static Future<void> previewPrint(QuotationDraft draft) async {
     final bytes = await buildQuotationPdf(draft);
     await Printing.layoutPdf(
@@ -307,7 +341,7 @@ class PdfService {
                 align: pw.TextAlign.center,
               ),
               _cell(line.item, style: cellStyle),
-              _cell(line.makeDescription, style: cellStyle),
+              _multiLineCell(line.makeDescription, style: cellStyle),
               _cell(
                 line.quantityLabel,
                 style: cellStyle,
@@ -338,6 +372,31 @@ class PdfService {
     return pw.Padding(
       padding: const pw.EdgeInsets.all(4),
       child: pw.Text(text, style: style, textAlign: align),
+    );
+  }
+
+  static pw.Widget _multiLineCell(String text, {required pw.TextStyle style}) {
+    // Split text by newlines
+    final lines = text.split('\n').where((line) => line.trim().isNotEmpty).toList();
+    
+    if (lines.isEmpty) {
+      return pw.Padding(
+        padding: const pw.EdgeInsets.all(4),
+        child: pw.Text('-', style: style),
+      );
+    }
+    
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(4),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: lines.map((line) {
+          return pw.Text(
+            line.trim(),
+            style: style,
+          );
+        }).toList(),
+      ),
     );
   }
 }

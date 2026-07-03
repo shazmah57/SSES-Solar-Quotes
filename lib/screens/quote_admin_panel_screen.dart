@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:file_picker/file_picker.dart';
 
 import '../constants/app_colors.dart';
 import '../models/admin_models.dart';
+import '../models/appliance_record.dart';
+import '../models/bos_record.dart';
 import '../services/admin_data_service.dart';
+import '../services/app_settings_service.dart';
+import '../services/quotation_save_service.dart';
 import '../theme/app_surfaces.dart';
 
 class QuoteAdminPanelScreen extends StatefulWidget {
@@ -21,7 +26,7 @@ class _QuoteAdminPanelScreenState extends State<QuoteAdminPanelScreen>
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 5, vsync: this);
+    _tabCtrl = TabController(length: 8, vsync: this);
   }
 
   @override
@@ -90,11 +95,14 @@ class _QuoteAdminPanelScreenState extends State<QuoteAdminPanelScreen>
                     indicatorWeight: 3,
                     tabAlignment: TabAlignment.start,
                     tabs: const [
+                      Tab(text: 'Storage'),
                       Tab(text: 'Panels'),
                       Tab(text: 'Inverters'),
                       Tab(text: 'Batteries'),
                       Tab(text: 'Structures'),
+                      Tab(text: 'BOS'),
                       Tab(text: 'Terms'),
+                      Tab(text: 'Appliances'),
                     ],
                   ),
                 ],
@@ -105,11 +113,14 @@ class _QuoteAdminPanelScreenState extends State<QuoteAdminPanelScreen>
             child: TabBarView(
               controller: _tabCtrl,
               children: [
+                const _StorageTab(),
                 _PanelsTab(svc: _svc),
                 _InvertersTab(svc: _svc),
                 _BatteriesTab(svc: _svc),
                 _StructuresTab(svc: _svc),
+                _BosTab(svc: _svc),
                 _TermsTab(svc: _svc),
+                _AppliancesTab(svc: _svc),
               ],
             ),
           ),
@@ -119,9 +130,235 @@ class _QuoteAdminPanelScreenState extends State<QuoteAdminPanelScreen>
   }
 }
 
-// ═════════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════
+// STORAGE TAB
+// ═════════════════════════════════════════════════════════════
+
+class _StorageTab extends StatefulWidget {
+  const _StorageTab();
+
+  @override
+  State<_StorageTab> createState() => _StorageTabState();
+}
+
+class _StorageTabState extends State<_StorageTab> {
+  late final TextEditingController _pathCtrl;
+  String _displayPath = '…';
+  final _saveService = QuotationSaveService.instance;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _pathCtrl = TextEditingController(text: _saveService.customPath ?? '');
+    _loadPath();
+  }
+
+  Future<void> _loadPath() async {
+    final dir = await _saveService.getQuotationsDirectory();
+    if (mounted) setState(() => _displayPath = dir.path);
+  }
+
+  @override
+  void dispose() {
+    _pathCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickFolder() async {
+    try {
+      setState(() => _isLoading = true);
+      
+      String? selectedDirectory = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: 'Select Quotations Storage Folder',
+      );
+
+      if (selectedDirectory != null) {
+        setState(() {
+          _pathCtrl.text = selectedDirectory;
+          _displayPath = selectedDirectory;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error selecting folder: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = AppSurfaces.isDark(context);
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Card(
+            color: isDark ? const Color(0xFF1A237E) : Colors.blue.shade50,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.folder, color: Colors.blue),
+                      SizedBox(width: 8),
+                      Text(
+                        'Quotations Storage Folder',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Select a folder where saved quotations will be stored',
+                    style: TextStyle(fontSize: 13, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Current: $_displayPath',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _pathCtrl,
+                          readOnly: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Selected folder path',
+                            hintText: 'Tap "Browse" to select a folder',
+                            border: OutlineInputBorder(),
+                            filled: true,
+                            fillColor: Colors.white,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        onPressed: _isLoading ? null : _pickFolder,
+                        icon: _isLoading
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.folder_open),
+                        label: const Text('Browse'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      FilledButton(
+                        onPressed: () async {
+                          if (_pathCtrl.text.trim().isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Please select a folder first'),
+                                backgroundColor: Colors.orange,
+                              ),
+                            );
+                            return;
+                          }
+                          await _saveService.setCustomPath(_pathCtrl.text);
+                          await _loadPath();
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Quotation storage path updated'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        },
+                        child: const Text('Save path'),
+                      ),
+                      OutlinedButton(
+                        onPressed: () async {
+                          _pathCtrl.clear();
+                          await _saveService.setCustomPath(null);
+                          await _loadPath();
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Using default folder'),
+                              ),
+                            );
+                          }
+                        },
+                        child: const Text('Use default folder'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'PDF Download Folder',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Where downloaded PDF reports are saved',
+                    style: TextStyle(fontSize: 13, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 8),
+                  FutureBuilder<String>(
+                    future: AppSettingsService.instance.displayDownloadPath(),
+                    builder: (context, snapshot) {
+                      final path = snapshot.data ?? 'Loading...';
+                      return Text(
+                        'Current: $path',
+                        style: const TextStyle(fontSize: 13),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ═════════════════════════════════════════════════════════════
 // PANELS TAB
-// ═════════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════
 
 class _PanelsTab extends StatelessWidget {
   const _PanelsTab({required this.svc});
@@ -226,9 +463,9 @@ class _PanelsTab extends StatelessWidget {
   }
 }
 
-// ═════════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════
 // INVERTERS TAB
-// ═════════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════
 
 class _InvertersTab extends StatelessWidget {
   const _InvertersTab({required this.svc});
@@ -338,9 +575,9 @@ class _InvertersTab extends StatelessWidget {
   }
 }
 
-// ═════════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════
 // BATTERIES TAB
-// ═════════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════
 
 class _BatteriesTab extends StatelessWidget {
   const _BatteriesTab({required this.svc});
@@ -449,9 +686,9 @@ class _BatteriesTab extends StatelessWidget {
   }
 }
 
-// ═════════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════
 // STRUCTURES TAB
-// ═════════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════
 
 class _StructuresTab extends StatelessWidget {
   const _StructuresTab({required this.svc});
@@ -549,9 +786,101 @@ class _StructuresTab extends StatelessWidget {
   }
 }
 
-// ═════════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════
+// BOS TAB (Balance of System) - Multiple Records with CRUD
+// ═════════════════════════════════════════════════════════════
+
+class _BosTab extends StatelessWidget {
+  const _BosTab({required this.svc});
+  final AdminDataService svc;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<List<BosRecord>>(
+      valueListenable: svc.bosRecords,
+      builder: (context, list, _) {
+        return _AdminListView(
+          itemCount: list.length,
+          onAdd: () => _showDialog(context, null),
+          itemBuilder: (i) {
+            final r = list[i];
+            return _RecordTile(
+              title: r.title,
+              subtitle: r.description.length > 60 
+                  ? '${r.description.substring(0, 60)}...' 
+                  : r.description,
+              active: r.active,
+              onEdit: () => _showDialog(context, r),
+              onDelete: () => _confirmDelete(
+                  context, r.title, () => svc.deleteBos(r.id)),
+              onToggle: () =>
+                  svc.updateBos(r.copyWith(active: !r.active)),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showDialog(BuildContext context, BosRecord? existing) {
+    final titleCtrl = TextEditingController(text: existing?.title ?? '');
+    final descCtrl = TextEditingController(text: existing?.description ?? '');
+    bool active = existing?.active ?? true;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDState) => AlertDialog(
+          title: Text(existing == null ? 'Add BOS' : 'Edit BOS'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _dialogField('Title', titleCtrl),
+                const SizedBox(height: 8),
+                _dialogField('Description', descCtrl, maxLines: 6),
+                const SizedBox(height: 8),
+                SwitchListTile(
+                  title: const Text('Active'),
+                  value: active,
+                  onChanged: (v) => setDState(() => active = v),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () async {
+                final record = BosRecord(
+                  id: existing?.id ??
+                      DateTime.now().microsecondsSinceEpoch.toString(),
+                  title: titleCtrl.text.trim(),
+                  description: descCtrl.text.trim(),
+                  active: active,
+                );
+                if (existing == null) {
+                  await svc.addBos(record);
+                } else {
+                  await svc.updateBos(record);
+                }
+                if (ctx.mounted) Navigator.pop(ctx);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ═════════════════════════════════════════════════════════════
 // TERMS TAB
-// ═════════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════
 
 class _TermsTab extends StatelessWidget {
   const _TermsTab({required this.svc});
@@ -648,9 +977,102 @@ class _TermsTab extends StatelessWidget {
   }
 }
 
-// ═════════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════
+// APPLIANCES TAB
+// ═════════════════════════════════════════════════════════════
+
+class _AppliancesTab extends StatelessWidget {
+  const _AppliancesTab({required this.svc});
+  final AdminDataService svc;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<List<ApplianceRecord>>(
+      valueListenable: svc.appliances,
+      builder: (context, list, _) {
+        return _AdminListView(
+          itemCount: list.length,
+          onAdd: () => _showDialog(context, null),
+          itemBuilder: (i) {
+            final r = list[i];
+            return _RecordTile(
+              title: r.applianceName,
+              subtitle: '${r.watts} W · Backup slots: ${r.backupSlots}',
+              active: r.active,
+              onEdit: () => _showDialog(context, r),
+              onDelete: () => _confirmDelete(
+                  context, r.applianceName, () => svc.deleteAppliance(r.id)),
+              onToggle: () =>
+                  svc.updateAppliance(r.copyWith(active: !r.active)),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showDialog(BuildContext context, ApplianceRecord? existing) {
+    final nameCtrl = TextEditingController(text: existing?.applianceName ?? '');
+    final wattsCtrl = TextEditingController(text: existing?.watts.toString() ?? '');
+    final slotsCtrl = TextEditingController(
+        text: existing?.backupSlots.toString() ?? '5');
+    bool active = existing?.active ?? true;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDState) => AlertDialog(
+          title: Text(existing == null ? 'Add Appliance' : 'Edit Appliance'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _dialogField('Appliance Name', nameCtrl),
+                _dialogField('Watts', wattsCtrl, numeric: true),
+                _dialogField('Backup Slots (1-10)', slotsCtrl, numeric: true),
+                SwitchListTile(
+                  title: const Text('Active'),
+                  value: active,
+                  onChanged: (v) => setDState(() => active = v),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () async {
+                final slots = int.tryParse(slotsCtrl.text) ?? 5;
+                final record = ApplianceRecord(
+                  id: existing?.id ??
+                      DateTime.now().microsecondsSinceEpoch.toString(),
+                  applianceName: nameCtrl.text.trim(),
+                  watts: int.tryParse(wattsCtrl.text) ?? 0,
+                  backupSlots: slots.clamp(1, 10),
+                  active: active,
+                );
+                if (existing == null) {
+                  await svc.addAppliance(record);
+                } else {
+                  await svc.updateAppliance(record);
+                }
+                if (ctx.mounted) Navigator.pop(ctx);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ═════════════════════════════════════════════════════════════
 // SHARED WIDGETS
-// ═════════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════
 
 class _AdminListView extends StatelessWidget {
   const _AdminListView({

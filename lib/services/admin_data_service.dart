@@ -7,6 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/catalog_data.dart';
 import '../models/admin_models.dart';
+import '../models/appliance_record.dart';
+import '../models/bos_record.dart';
 import 'catalog_service.dart';
 
 class AdminDataService {
@@ -18,12 +20,16 @@ class AdminDataService {
   static const _colBatteries = 'quote_batteries';
   static const _colStructures = 'quote_structures';
   static const _colTerms = 'quote_terms';
+  static const _colAppliances = 'appliance_configs';
+  static const _colBos = 'quote_bos';
 
   static const _keyPanels = 'admin_panels';
   static const _keyInverters = 'admin_inverters';
   static const _keyBatteries = 'admin_batteries';
   static const _keyStructures = 'admin_structures';
   static const _keyTerms = 'admin_terms';
+  static const _keyAppliances = 'admin_appliances';
+  static const _keyBos = 'admin_bos';
 
   final ValueNotifier<List<SolarPanelRecord>> panels = ValueNotifier([]);
   final ValueNotifier<List<SolarInverterRecord>> inverters = ValueNotifier([]);
@@ -31,12 +37,16 @@ class AdminDataService {
   final ValueNotifier<List<MountingStructureRecord>> structures =
       ValueNotifier([]);
   final ValueNotifier<List<TermsRecord>> terms = ValueNotifier([]);
+  final ValueNotifier<List<ApplianceRecord>> appliances = ValueNotifier([]);
+  final ValueNotifier<List<BosRecord>> bosRecords = ValueNotifier([]);
 
   StreamSubscription? _panelSub;
   StreamSubscription? _inverterSub;
   StreamSubscription? _batterySub;
   StreamSubscription? _structureSub;
   StreamSubscription? _termsSub;
+  StreamSubscription? _applianceSub;
+  StreamSubscription? _bosSub;
 
   FirebaseFirestore? get _db => CatalogService.instance.firestore;
   bool get _cloudOn => CatalogService.instance.cloudEnabled.value;
@@ -54,6 +64,102 @@ class AdminDataService {
     list.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
     return list;
   }
+  List<ApplianceRecord> get activeAppliances =>
+      appliances.value.where((r) => r.active).toList();
+  List<BosRecord> get activeBosRecords =>
+      bosRecords.value.where((r) => r.active).toList();
+
+  // ═════════════════════════════════════════════════════════════
+  // BOS (Balance of System) - Multiple Records
+  // ═════════════════════════════════════════════════════════════
+
+  Future<void> addBos(BosRecord r) async {
+    final db = _db;
+    if (db != null && _cloudOn) {
+      try {
+        await db.collection(_colBos).doc(r.id).set(_bosToMap(r));
+      } catch (e) {
+        print('Error saving BOS to Firestore: $e');
+      }
+    }
+    // Always update local cache
+    final currentList = bosRecords.value.toList();
+    currentList.add(r);
+    bosRecords.value = currentList;
+    await _cacheList(_keyBos, bosRecords.value.map((e) => e.toJson()).toList());
+  }
+
+  Future<void> updateBos(BosRecord r) async {
+    final db = _db;
+    if (db != null && _cloudOn) {
+      try {
+        await db.collection(_colBos).doc(r.id).set(_bosToMap(r));
+      } catch (e) {
+        print('Error updating BOS in Firestore: $e');
+      }
+    }
+    // Always update local cache
+    final currentList = bosRecords.value.toList();
+    final index = currentList.indexWhere((item) => item.id == r.id);
+    if (index >= 0) {
+      currentList[index] = r;
+    } else {
+      currentList.add(r);
+    }
+    bosRecords.value = currentList;
+    await _cacheList(_keyBos, bosRecords.value.map((e) => e.toJson()).toList());
+  }
+
+  Future<void> deleteBos(String id) async {
+    final db = _db;
+    if (db != null && _cloudOn) {
+      try {
+        await db.collection(_colBos).doc(id).delete();
+      } catch (e) {
+        print('Error deleting BOS from Firestore: $e');
+      }
+    }
+    final currentList = bosRecords.value.where((item) => item.id != id).toList();
+    bosRecords.value = currentList;
+    await _cacheList(_keyBos, bosRecords.value.map((e) => e.toJson()).toList());
+  }
+
+  Future<BosRecord?> getBosById(String id) async {
+    try {
+      final found = bosRecords.value.where((r) => r.id == id).firstOrNull;
+      return found;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  void _listenBos() {
+    final db = _db;
+    if (db == null) return;
+    
+    _bosSub?.cancel();
+    _bosSub = db.collection(_colBos).snapshots().listen((snap) {
+      final list = snap.docs.map((d) => _bosFromDoc(d)).toList();
+      bosRecords.value = list;
+      _cacheList(_keyBos, list.map((e) => e.toJson()).toList());
+    }, onError: (error) {
+      print('BOS listener error: $error');
+    });
+  }
+
+  static Map<String, dynamic> _bosToMap(BosRecord r) => {
+    'title': r.title,
+    'description': r.description,
+    'active': r.active,
+  };
+
+  static BosRecord _bosFromDoc(DocumentSnapshot<Map<String, dynamic>> d) =>
+      BosRecord(
+        id: d.id,
+        title: d.data()?['title'] as String? ?? 'Balance of System',
+        description: d.data()?['description'] as String? ?? '',
+        active: d.data()?['active'] as bool? ?? true,
+      );
 
   Future<void> init() async {
     await _loadLocalCache();
@@ -260,6 +366,42 @@ class AdminDataService {
   }
 
   // ═════════════════════════════════════════════════════════════
+  // APPLIANCES
+  // ═════════════════════════════════════════════════════════════
+
+  Future<void> addAppliance(ApplianceRecord r) async {
+    final db = _db;
+    if (db != null && _cloudOn) {
+      await db.collection(_colAppliances).doc(r.id).set(_applianceToMap(r));
+    } else {
+      appliances.value = [...appliances.value, r];
+      await _cacheList(_keyAppliances, appliances.value.map((e) => e.toJson()).toList());
+    }
+  }
+
+  Future<void> updateAppliance(ApplianceRecord r) async {
+    final db = _db;
+    if (db != null && _cloudOn) {
+      await db.collection(_colAppliances).doc(r.id).set(_applianceToMap(r));
+    } else {
+      appliances.value = [
+        for (final p in appliances.value) if (p.id == r.id) r else p
+      ];
+      await _cacheList(_keyAppliances, appliances.value.map((e) => e.toJson()).toList());
+    }
+  }
+
+  Future<void> deleteAppliance(String id) async {
+    final db = _db;
+    if (db != null && _cloudOn) {
+      await db.collection(_colAppliances).doc(id).delete();
+    } else {
+      appliances.value = appliances.value.where((p) => p.id != id).toList();
+      await _cacheList(_keyAppliances, appliances.value.map((e) => e.toJson()).toList());
+    }
+  }
+
+  // ═════════════════════════════════════════════════════════════
   // FIRESTORE LISTENERS (real-time sync)
   // ═════════════════════════════════════════════════════════════
 
@@ -301,6 +443,15 @@ class AdminDataService {
       terms.value = list;
       _cacheList(_keyTerms, list.map((e) => e.toJson()).toList());
     });
+
+    _applianceSub?.cancel();
+    _applianceSub = db.collection(_colAppliances).snapshots().listen((snap) {
+      final list = snap.docs.map((d) => _applianceFromDoc(d)).toList();
+      appliances.value = list;
+      _cacheList(_keyAppliances, list.map((e) => e.toJson()).toList());
+    });
+
+    _listenBos();
   }
 
   // ═════════════════════════════════════════════════════════════
@@ -384,6 +535,55 @@ class AdminDataService {
         )));
       }
 
+      // Seed appliances
+      final applianceSeeds = [
+        ('Lights', 15, 5),
+        ('Fridge', 180, 3),
+        ('Deep Freezer', 220, 3),
+        ('1 Ton AC Inverter', 1200, 5),
+        ('1.5 Ton AC Inverter', 1500, 5),
+        ('2 Ton AC Inverter', 1800, 5),
+        ('2.5 Ton AC Inverter', 2200, 5),
+        ('1 Ton AC Non Inverter', 1500, 5),
+        ('1.5 Ton AC Non Inverter', 1900, 5),
+        ('2 Ton AC Non Inverter', 2300, 5),
+        ('2.5 Ton AC Non Inverter', 2700, 5),
+        ('Fans Conventional', 90, 5),
+        ('Fans AC/DC', 45, 5),
+        ('Other Load', 300, 2),
+      ];
+      for (final (name, watts, slots) in applianceSeeds) {
+        final id = db.collection(_colAppliances).doc().id;
+        batch.set(db.collection(_colAppliances).doc(id), _applianceToMap(ApplianceRecord(
+          id: id,
+          applianceName: name,
+          watts: watts,
+          backupSlots: slots,
+        )));
+      }
+
+      // Seed BOS - Two default templates
+      final bosSeeds = [
+        {
+          'title': 'Three Phase Hybrid System',
+          'description': 'DC wire: XLPO Pakistan Cables 4mm2\nAC wire: 4 Core Standard 6mm2 Pakistan Cables\nCHINT/Himel Circuit Breakers',
+          'active': true,
+        },
+        {
+          'title': 'Single Phase Hybrid System',
+          'description': 'DC wire: XLPO Pakistan Cables 4mm2\nAC wire: Pakistan Cables 6mm2\nCHINT/Himel Circuit Breakers',
+          'active': true,
+        },
+      ];
+      for (final bos in bosSeeds) {
+        final id = db.collection(_colBos).doc().id;
+        batch.set(db.collection(_colBos).doc(id), {
+          'title': bos['title'],
+          'description': bos['description'],
+          'active': bos['active'],
+        });
+      }
+
       await batch.commit();
       debugPrint('AdminDataService: seeded Firestore with defaults');
     } catch (e) {
@@ -409,6 +609,8 @@ class AdminDataService {
   }
 
   Future<void> _loadLocalCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    
     panels.value =
         (await _loadCache(_keyPanels)).map(SolarPanelRecord.fromJson).toList();
     inverters.value = (await _loadCache(_keyInverters))
@@ -422,9 +624,15 @@ class AdminDataService {
         .toList();
     terms.value =
         (await _loadCache(_keyTerms)).map(TermsRecord.fromJson).toList();
+    appliances.value =
+        (await _loadCache(_keyAppliances)).map(ApplianceRecord.fromJson).toList();
+    bosRecords.value =
+        (await _loadCache(_keyBos)).map(BosRecord.fromJson).toList();
   }
 
   Future<void> _seedLocalDefaults() async {
+    final prefs = await SharedPreferences.getInstance();
+    
     final seedPanels = <SolarPanelRecord>[];
     for (final name in CatalogData.solarPanels) {
       seedPanels.add(SolarPanelRecord(
@@ -503,6 +711,51 @@ class AdminDataService {
     }
     terms.value = seedTerms;
 
+    // Seed local appliances
+    final seedAppliances = <ApplianceRecord>[];
+    final defaultAppliances = [
+      ('Lights', 15, 5),
+      ('Fridge', 180, 3),
+      ('Deep Freezer', 220, 3),
+      ('1 Ton AC Inverter', 1200, 5),
+      ('1.5 Ton AC Inverter', 1500, 5),
+      ('2 Ton AC Inverter', 1800, 5),
+      ('2.5 Ton AC Inverter', 2200, 5),
+      ('1 Ton AC Non Inverter', 1500, 5),
+      ('1.5 Ton AC Non Inverter', 1900, 5),
+      ('2 Ton AC Non Inverter', 2300, 5),
+      ('2.5 Ton AC Non Inverter', 2700, 5),
+      ('Fans Conventional', 90, 5),
+      ('Fans AC/DC', 45, 5),
+      ('Other Load', 300, 2),
+    ];
+    for (final (name, watts, slots) in defaultAppliances) {
+      seedAppliances.add(ApplianceRecord(
+        id: _newId(),
+        applianceName: name,
+        watts: watts,
+        backupSlots: slots,
+      ));
+      await Future.delayed(const Duration(microseconds: 1));
+    }
+    appliances.value = seedAppliances;
+
+    // Seed local BOS
+    bosRecords.value = [
+      BosRecord(
+        id: _newId(),
+        title: 'Three Phase Hybrid System',
+        description: 'DC wire: XLPO Pakistan Cables 4mm2\nAC wire: 4 Core Standard 6mm2 Pakistan Cables\nCHINT/Himel Circuit Breakers',
+        active: true,
+      ),
+      BosRecord(
+        id: '${_newId()}1',
+        title: 'Single Phase Hybrid System',
+        description: 'DC wire: XLPO Pakistan Cables 4mm2\nAC wire: Pakistan Cables 6mm2\nCHINT/Himel Circuit Breakers',
+        active: true,
+      ),
+    ];
+
     await _cacheList(_keyPanels, panels.value.map((e) => e.toJson()).toList());
     await _cacheList(
         _keyInverters, inverters.value.map((e) => e.toJson()).toList());
@@ -511,9 +764,11 @@ class AdminDataService {
     await _cacheList(
         _keyStructures, structures.value.map((e) => e.toJson()).toList());
     await _cacheList(_keyTerms, terms.value.map((e) => e.toJson()).toList());
+    await _cacheList(_keyAppliances, appliances.value.map((e) => e.toJson()).toList());
+    await _cacheList(_keyBos, bosRecords.value.map((e) => e.toJson()).toList());
   }
 
-  String _newId() => DateTime.now().microsecondsSinceEpoch.toString();
+  String _newId() => DateTime.now().millisecondsSinceEpoch.toString();
 
   // ═════════════════════════════════════════════════════════════
   // FIRESTORE ↔ MODEL CONVERTERS
@@ -628,6 +883,23 @@ class AdminDataService {
         active: d.data()?['active'] as bool? ?? true,
       );
 
+  static Map<String, dynamic> _applianceToMap(ApplianceRecord r) => {
+        'applianceName': r.applianceName,
+        'watts': r.watts,
+        'backupSlots': r.backupSlots,
+        'active': r.active,
+      };
+
+  static ApplianceRecord _applianceFromDoc(
+          DocumentSnapshot<Map<String, dynamic>> d) =>
+      ApplianceRecord(
+        id: d.id,
+        applianceName: d.data()?['applianceName'] as String? ?? '',
+        watts: (d.data()?['watts'] as num?)?.toInt() ?? 0,
+        backupSlots: (d.data()?['backupSlots'] as num?)?.toInt() ?? 5,
+        active: d.data()?['active'] as bool? ?? true,
+      );
+
   // ═════════════════════════════════════════════════════════════
   // HELPERS
   // ═════════════════════════════════════════════════════════════
@@ -676,5 +948,7 @@ class AdminDataService {
     _batterySub?.cancel();
     _structureSub?.cancel();
     _termsSub?.cancel();
+    _applianceSub?.cancel();
+    _bosSub?.cancel();
   }
 }

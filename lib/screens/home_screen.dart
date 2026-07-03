@@ -5,6 +5,7 @@ import 'load_calculation_screen.dart';
 import 'battery_backup_screen.dart';
 import 'quotation_form_screen.dart';
 import 'quote_admin_panel_screen.dart';
+import 'quotation_history_screen.dart';
 import '../services/app_settings_service.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -118,6 +119,19 @@ class _HomeScreenState extends State<HomeScreen> {
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const QuotationFormScreen()),
+                    );
+                  },
+                ),
+                const SizedBox(height: 4),
+                // SAVED QUOTATIONS TAB
+                _ToolCard(
+                  icon: Icons.history_outlined,
+                  title: 'Saved Quotations',
+                  subtitle: 'View, edit, or delete saved quotations',
+                  color: Colors.purple,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const QuotationHistoryScreen()),
                     );
                   },
                 ),
