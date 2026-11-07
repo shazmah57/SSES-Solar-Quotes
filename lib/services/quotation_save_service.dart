@@ -12,7 +12,7 @@ class QuotationSaveService {
 
   static const String _prefKey = 'saved_quotations';
   static const String _customPathKey = 'quotations_custom_path';
-  
+
   String? _customPath;
 
   Future<void> init() async {
@@ -34,14 +34,12 @@ class QuotationSaveService {
   String? get customPath => _customPath;
 
   Future<Directory> getQuotationsDirectory() async {
-    // For web, use a different approach
     if (kIsWeb) {
-      // On web, we store in memory and use SharedPreferences
       final docsDir = await getApplicationDocumentsDirectory();
       final dir = Directory('${docsDir.path}/SSES_Quotations');
       return dir;
     }
-    
+
     if (_customPath != null) {
       final dir = Directory(_customPath!);
       if (!dir.existsSync()) {
@@ -49,7 +47,7 @@ class QuotationSaveService {
       }
       return dir;
     }
-    
+
     final docsDir = await getApplicationDocumentsDirectory();
     final dir = Directory('${docsDir.path}/SSES_Quotations');
     if (!dir.existsSync()) {
@@ -66,8 +64,8 @@ class QuotationSaveService {
   Future<void> saveQuotation(QuotationDraft draft, {String? customId}) async {
     final savedQuotation = SavedQuotation(
       id: customId ?? DateTime.now().millisecondsSinceEpoch.toString(),
-      quotationNumber: draft.quotationNumber.trim().isEmpty 
-          ? 'Q-${DateTime.now().millisecondsSinceEpoch}' 
+      quotationNumber: draft.quotationNumber.trim().isEmpty
+          ? 'Q-${DateTime.now().millisecondsSinceEpoch}'
           : draft.quotationNumber.trim(),
       quotedTo: draft.quotedTo,
       contactNo: draft.contactNo,
@@ -81,14 +79,16 @@ class QuotationSaveService {
       inverterMake: draft.inverterMake,
       inverterQty: draft.inverterQty,
       inverterUnitPrice: draft.inverterUnitPrice,
+      inverterWarranty: draft.inverterWarranty, // FIX: persist inverter warranty
       batteryMake: draft.batteryMake,
       batteryQty: draft.batteryQty,
       batteryUnitPrice: draft.batteryUnitPrice,
       batteryWarranty: draft.batteryWarranty,
-      mountingType: draft.mountingType,
+      mountingType: draft.mountingType ?? '',
       mountingQty: draft.mountingQty,
       mountingUnitPrice: draft.mountingUnitPrice,
       bosUnitPrice: draft.bosUnitPrice,
+      bosId: draft.bosId, // FIX: persist BOS selection
       earthingQty: draft.earthingQty,
       earthingUnitPrice: draft.earthingUnitPrice,
       installationUnitPrice: draft.installationUnitPrice,
@@ -97,10 +97,9 @@ class QuotationSaveService {
       lastModified: DateTime.now(),
     );
 
-    // Save to SharedPreferences as well (for web support)
     final allQuotes = await getAllQuotations();
     final existingIndex = allQuotes.indexWhere((q) => q.id == savedQuotation.id);
-    
+
     List<SavedQuotation> newList;
     if (existingIndex >= 0) {
       newList = [...allQuotes];
@@ -108,18 +107,17 @@ class QuotationSaveService {
     } else {
       newList = [savedQuotation, ...allQuotes];
     }
-    
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_prefKey, jsonEncode(newList.map((q) => q.toJson()).toList()));
 
-    // Also try to save to file system (if not web)
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+        _prefKey, jsonEncode(newList.map((q) => q.toJson()).toList()));
+
     if (!kIsWeb) {
       try {
         final dir = await getQuotationsDirectory();
         final file = File('${dir.path}/${savedQuotation.id}.json');
         await file.writeAsString(jsonEncode(savedQuotation.toJson()));
       } catch (e) {
-        // File system error - but we already saved to SharedPreferences
         print('File save error (ignored): $e');
       }
     }
@@ -128,7 +126,7 @@ class QuotationSaveService {
   Future<void> _updateIndex(SavedQuotation quote) async {
     final index = await getAllQuotations();
     final existingIndex = index.indexWhere((q) => q.id == quote.id);
-    
+
     List<SavedQuotation> newIndex;
     if (existingIndex >= 0) {
       newIndex = [...index];
@@ -136,37 +134,38 @@ class QuotationSaveService {
     } else {
       newIndex = [quote, ...index];
     }
-    
+
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_prefKey, jsonEncode(newIndex.map((q) => q.toJson()).toList()));
+    await prefs.setString(
+        _prefKey, jsonEncode(newIndex.map((q) => q.toJson()).toList()));
   }
 
   Future<List<SavedQuotation>> getAllQuotations() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_prefKey);
     if (raw == null || raw.isEmpty) return [];
-    
+
     try {
       final List<dynamic> list = jsonDecode(raw);
-      return list.map((json) => SavedQuotation.fromJson(json as Map<String, dynamic>)).toList();
+      return list
+          .map((json) => SavedQuotation.fromJson(json as Map<String, dynamic>))
+          .toList();
     } catch (e) {
       return [];
     }
   }
 
   Future<SavedQuotation?> getQuotation(String id) async {
-    // Try to get from SharedPreferences first
     final all = await getAllQuotations();
     final found = all.where((q) => q.id == id).firstOrNull;
     if (found != null) return found;
-    
-    // If not found, try file system (for non-web)
+
     if (!kIsWeb) {
       try {
         final dir = await getQuotationsDirectory();
         final file = File('${dir.path}/$id.json');
         if (!await file.exists()) return null;
-        
+
         final content = await file.readAsString();
         return SavedQuotation.fromJson(jsonDecode(content));
       } catch (e) {
@@ -177,13 +176,12 @@ class QuotationSaveService {
   }
 
   Future<void> deleteQuotation(String id) async {
-    // Remove from SharedPreferences
     final index = await getAllQuotations();
     final newIndex = index.where((q) => q.id != id).toList();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_prefKey, jsonEncode(newIndex.map((q) => q.toJson()).toList()));
-    
-    // Also delete from file system (if not web)
+    await prefs.setString(
+        _prefKey, jsonEncode(newIndex.map((q) => q.toJson()).toList()));
+
     if (!kIsWeb) {
       try {
         final dir = await getQuotationsDirectory();
@@ -199,11 +197,9 @@ class QuotationSaveService {
 
   Future<void> updateQuotation(SavedQuotation quote) async {
     final updatedQuote = quote.copyWith(lastModified: DateTime.now());
-    
-    // Update SharedPreferences
+
     await _updateIndex(updatedQuote);
-    
-    // Update file system (if not web)
+
     if (!kIsWeb) {
       try {
         final dir = await getQuotationsDirectory();
@@ -230,6 +226,7 @@ class QuotationSaveService {
       inverterMake: saved.inverterMake,
       inverterQty: saved.inverterQty,
       inverterUnitPrice: saved.inverterUnitPrice,
+      inverterWarranty: saved.inverterWarranty ?? '3', // FIX: restore inverter warranty
       batteryMake: saved.batteryMake,
       batteryQty: saved.batteryQty,
       batteryUnitPrice: saved.batteryUnitPrice,
@@ -238,6 +235,7 @@ class QuotationSaveService {
       mountingQty: saved.mountingQty,
       mountingUnitPrice: saved.mountingUnitPrice,
       bosUnitPrice: saved.bosUnitPrice,
+      bosId: saved.bosId, // FIX: restore BOS selection
       earthingQty: saved.earthingQty,
       earthingUnitPrice: saved.earthingUnitPrice,
       installationUnitPrice: saved.installationUnitPrice,

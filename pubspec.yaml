@@ -1,19 +1,23 @@
 name: solar_quotation_app
 description: Solar sales quotation app matching your Excel workbook and PDF format.
 publish_to: 'none'
-version: 1.1.0+2
+version: 1.1.3+6
 
 environment:
   sdk: ^3.12.0
 
 dependencies:
+  firebase_remote_config: ^5.3.0
+  package_info_plus: ^8.1.1
+  permission_handler: ^11.3.1
+  open_file: ^3.5.10
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
   intl: ^0.20.2
   pdf: ^3.11.3
   printing: ^5.14.2
-  path_provider: ^2.1.5
+  path_provider: ^2.1.2
   firebase_core: ^3.6.0
   firebase_auth: ^5.3.0
   cloud_firestore: ^5.4.0
@@ -21,7 +25,7 @@ dependencies:
   firebase_storage: ^12.3.0
   shared_preferences: ^2.5.5
   share_plus: ^12.0.1
-  file_picker: ^8.0.0       # ← ADD THIS
+  file_picker: ^8.0.0
 
 dev_dependencies:
   flutter_test:

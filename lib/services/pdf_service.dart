@@ -32,7 +32,7 @@ class PdfService {
     final letterhead = await LetterheadPdf.loadLetterheadImage();
     final lines = draft.lines;
     final total = draft.grandTotal;
-    final hasDiscount = draft.hasDiscount;
+    final hasDiscount = draft.discountedPrice > 0;
     final discounted = draft.discountedPrice;
     final warranties = draft.warranties;
 

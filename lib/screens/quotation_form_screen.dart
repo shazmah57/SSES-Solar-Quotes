@@ -45,6 +45,7 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
   final _panelPriceCtrl = TextEditingController();
   final _inverterQtyCtrl = TextEditingController();
   final _inverterPriceCtrl = TextEditingController();
+  final _inverterWarrantyCtrl = TextEditingController(); // NEW: Inverter warranty
   final _batteryQtyCtrl = TextEditingController();
   final _batteryPriceCtrl = TextEditingController();
   final _batteryWarrantyCtrl = TextEditingController();
@@ -64,7 +65,7 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
   String? _selectedBattery;
   String? _selectedMounting;
   String? _selectedEarthingQty;
-  String? _selectedBos;  // ← NEW: Selected BOS ID
+  String? _selectedBos;
 
   final _adminSvc = AdminDataService.instance;
   final _saveService = QuotationSaveService.instance;
@@ -81,8 +82,8 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
     _earthingQtyCtrl.text = '0';
     _earthingPriceCtrl.text = '30000';
     _batteryWarrantyCtrl.text = '5';
+    _inverterWarrantyCtrl.text = '3'; // NEW: Default inverter warranty
     
-    // Set default BOS selection
     if (_adminSvc.activeBosRecords.isNotEmpty) {
       _selectedBos = _adminSvc.activeBosRecords.first.id;
     }
@@ -108,6 +109,7 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
     _panelPriceCtrl.text = draft.panelUnitPrice > 0 ? draft.panelUnitPrice.toString() : '';
     _inverterQtyCtrl.text = draft.inverterQty > 0 ? draft.inverterQty.toString() : '';
     _inverterPriceCtrl.text = draft.inverterUnitPrice > 0 ? draft.inverterUnitPrice.toString() : '';
+    _inverterWarrantyCtrl.text = draft.inverterWarranty.isNotEmpty ? draft.inverterWarranty : '3'; // NEW
     _batteryQtyCtrl.text = draft.batteryQty > 0 ? draft.batteryQty.toString() : '';
     _batteryPriceCtrl.text = draft.batteryUnitPrice > 0 ? draft.batteryUnitPrice.toString() : '';
     _batteryWarrantyCtrl.text = draft.batteryWarranty.isNotEmpty ? draft.batteryWarranty : '5';
@@ -120,7 +122,6 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
     _installPriceCtrl.text = draft.installationUnitPrice > 0 ? draft.installationUnitPrice.toString() : '';
     _discountCtrl.text = draft.discountedPrice > 0 ? draft.discountedPrice.toString() : '';
     
-    // Load selected BOS
     _selectedBos = draft.bosId;
     if (_selectedBos == null || _selectedBos!.isEmpty) {
       if (_adminSvc.activeBosRecords.isNotEmpty) {
@@ -140,6 +141,7 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
     _panelPriceCtrl.dispose();
     _inverterQtyCtrl.dispose();
     _inverterPriceCtrl.dispose();
+    _inverterWarrantyCtrl.dispose(); // NEW
     _batteryQtyCtrl.dispose();
     _batteryPriceCtrl.dispose();
     _batteryWarrantyCtrl.dispose();
@@ -168,6 +170,7 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
       inverterMake: _selectedInverter,
       inverterQty: int.tryParse(_inverterQtyCtrl.text) ?? 0,
       inverterUnitPrice: int.tryParse(_inverterPriceCtrl.text) ?? 0,
+      inverterWarranty: _inverterWarrantyCtrl.text.trim().isNotEmpty ? _inverterWarrantyCtrl.text.trim() : '3', // NEW
       batteryMake: _selectedBattery,
       batteryQty: int.tryParse(_batteryQtyCtrl.text) ?? 0,
       batteryUnitPrice: int.tryParse(_batteryPriceCtrl.text) ?? 0,
@@ -679,6 +682,9 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
     final price = int.tryParse(_panelPriceCtrl.text) ?? 0;
     final lineTotal = qty * price;
 
+    // Try to auto-fill price from the currently selected panel
+    _autoFillPriceIfNeeded();
+
     return _itemCardShell(
       context,
       serialNo: 1,
@@ -721,6 +727,45 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
     );
   }
 
+  void _autoFillPriceIfNeeded() {
+    // For panels
+    if (_selectedPanel != null && _panelPriceCtrl.text.isEmpty) {
+      final match = _adminSvc.activePanels
+          .where((p) => p.displayName == _selectedPanel)
+          .firstOrNull;
+      if (match != null && match.unitPrice > 0) {
+        _panelPriceCtrl.text = match.unitPrice.toString();
+      }
+    }
+    // For inverters
+    if (_selectedInverter != null && _inverterPriceCtrl.text.isEmpty) {
+      final match = _adminSvc.activeInverters
+          .where((i) => i.displayName == _selectedInverter)
+          .firstOrNull;
+      if (match != null && match.unitPrice > 0) {
+        _inverterPriceCtrl.text = match.unitPrice.toString();
+      }
+    }
+    // For batteries
+    if (_selectedBattery != null && _batteryPriceCtrl.text.isEmpty) {
+      final match = _adminSvc.activeBatteries
+          .where((b) => b.displayName == _selectedBattery)
+          .firstOrNull;
+      if (match != null && match.unitPrice > 0) {
+        _batteryPriceCtrl.text = match.unitPrice.toString();
+      }
+    }
+    // For structures
+    if (_selectedMounting != null && _mountingPriceCtrl.text.isEmpty) {
+      final match = _adminSvc.activeStructures
+          .where((s) => s.displayName == _selectedMounting)
+          .firstOrNull;
+      if (match != null && match.unitPrice > 0) {
+        _mountingPriceCtrl.text = match.unitPrice.toString();
+      }
+    }
+  }
+
   Widget _inverterCard(BuildContext context) {
     final activeInverters = _adminSvc.activeInverters;
     final names = activeInverters.map((p) => p.displayName).toList();
@@ -750,6 +795,50 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
             _numericField(context, 'Qty', _inverterQtyCtrl),
             const SizedBox(width: 12),
             _numericField(context, 'Unit Price (PKR)', _inverterPriceCtrl),
+          ],
+        ),
+        // NEW: Inverter Warranty field (like battery)
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            const Text(
+              'Warranty (years): ',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextFormField(
+                controller: _inverterWarrantyCtrl,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppSurfaces.primaryText(context),
+                ),
+                decoration: InputDecoration(
+                  hintText: 'e.g. 3',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: AppSurfaces.fieldBorder(context)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: AppSurfaces.fieldBorder(context)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppColors.letterheadGreen, width: 1.5),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  filled: true,
+                  fillColor: AppSurfaces.fieldFill(context),
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
+            ),
           ],
         ),
         if (lineTotal > 0) ...[
@@ -801,7 +890,6 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
           ],
         ),
         const SizedBox(height: 8),
-        // Battery Warranty Input
         Row(
           children: [
             const Text(
@@ -920,18 +1008,10 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
 
   Widget _mountingCard(BuildContext context) {
     final activeStructures = _adminSvc.activeStructures;
-    final names = activeStructures.map((s) => s.structureName).toList();
+    final names = activeStructures.map((s) => s.displayName).toList();
     final qty = int.tryParse(_mountingQtyCtrl.text) ?? 0;
     final price = int.tryParse(_mountingPriceCtrl.text) ?? 0;
     final lineTotal = qty * price;
-
-    String desc = '';
-    if (_selectedMounting != null) {
-      final match = activeStructures
-          .where((s) => s.structureName == _selectedMounting)
-          .firstOrNull;
-      desc = match?.materialDetails ?? CatalogData.mountingDescription(_selectedMounting!);
-    }
 
     return _itemCardShell(
       context,
@@ -942,14 +1022,14 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
           setState(() {
             _selectedMounting = v;
             final match = activeStructures
-                .where((s) => s.structureName == v)
+                .where((s) => s.displayName == v)
                 .firstOrNull;
             if (match != null && match.unitPrice > 0) {
               _mountingPriceCtrl.text = match.unitPrice.toString();
             }
           });
         }),
-        if (desc.isNotEmpty) ...[
+        if (_selectedMounting != null) ...[
           const SizedBox(height: 8),
           Container(
             width: double.infinity,
@@ -958,13 +1038,19 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
               color: AppSurfaces.accentPanel(context),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Text(
-              desc,
-              style: TextStyle(
-                fontSize: 12,
-                color: AppSurfaces.secondaryText(context),
-                height: 1.4,
-              ),
+            child: FutureBuilder<String>(
+              future: _getStructureDescription(),
+              builder: (context, snapshot) {
+                final desc = snapshot.data ?? '';
+                return Text(
+                  desc,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppSurfaces.secondaryText(context),
+                    height: 1.4,
+                  ),
+                );
+              },
             ),
           ),
         ],
@@ -994,19 +1080,24 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
     );
   }
 
-  // ─── Balance of System card with dropdown ────────────────────────
+  Future<String> _getStructureDescription() async {
+    if (_selectedMounting == null) return '';
+    final activeStructures = _adminSvc.activeStructures;
+    final match = activeStructures
+        .where((s) => s.displayName == _selectedMounting)
+        .firstOrNull;
+    return match?.fullDescription ?? '';
+  }
 
   Widget _bosCard(BuildContext context) {
     final isDark = AppSurfaces.isDark(context);
     final bosList = _adminSvc.activeBosRecords;
     
-    // Find the selected BOS record
     BosRecord? selectedRecord;
     if (_selectedBos != null) {
       selectedRecord = bosList.where((r) => r.id == _selectedBos).firstOrNull;
     }
     
-    // Use the first active BOS as default if nothing selected
     if (selectedRecord == null && bosList.isNotEmpty) {
       selectedRecord = bosList.first;
       _selectedBos = selectedRecord.id;
@@ -1058,7 +1149,6 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
               ],
             ),
             const SizedBox(height: 8),
-            // BOS Dropdown
             if (bosList.isNotEmpty)
               DropdownButtonFormField<String>(
                 value: _selectedBos,
@@ -1098,9 +1188,8 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
                   });
                 },
               ),
-            const SizedBox(height: 8),
-            // BOS Description
-            if (description.isNotEmpty)
+            if (description.isNotEmpty) ...[
+              const SizedBox(height: 8),
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(10),
@@ -1117,6 +1206,7 @@ class _QuotationFormScreenState extends State<QuotationFormScreen> {
                   ),
                 ),
               ),
+            ],
             const SizedBox(height: 10),
             Row(
               children: [

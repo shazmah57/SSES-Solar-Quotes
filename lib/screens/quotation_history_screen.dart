@@ -205,7 +205,7 @@ class _QuotationCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: isDark ? Colors.white.withOpacity(0.08) : Colors.grey.shade200,
+          color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.shade200,
         ),
       ),
       child: InkWell(

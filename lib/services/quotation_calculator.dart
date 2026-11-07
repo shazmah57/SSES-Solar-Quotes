@@ -8,18 +8,29 @@ class QuotationCalculator {
   static int lineTotalQtyTimesPrice(int qty, int unitPrice) => qty * unitPrice;
 
   static List<QuotationLine> buildLines(QuotationDraft q) {
-    final mountingDesc = CatalogData.mountingDescription(q.mountingType);
+    // Get the selected records from AdminDataService
+    final panels = AdminDataService.instance.activePanels;
+    final inverters = AdminDataService.instance.activeInverters;
+    final batteries = AdminDataService.instance.activeBatteries;
+    final structures = AdminDataService.instance.activeStructures;
+
+    // Find selected records by matching displayName
+    final selectedPanel = panels.where((p) => p.displayName == q.panelMake).firstOrNull;
+    final selectedInverter = inverters.where((i) => i.displayName == q.inverterMake).firstOrNull;
+    final selectedBattery = batteries.where((b) => b.displayName == q.batteryMake).firstOrNull;
+    final selectedStructure = structures.where((s) => s.displayName == q.mountingType).firstOrNull;
 
     // Build all lines first (only if they have values)
     final List<QuotationLine> allLines = [];
 
     // 1. Solar Panels (only if qty > 0)
     if (q.panelQty > 0) {
+      final description = selectedPanel?.fullDescription ?? q.panelMake ?? '-';
       allLines.add(
         QuotationLine(
           serialNo: 0,
           item: 'Solar Panels',
-          makeDescription: q.panelMake ?? '-',
+          makeDescription: description,
           quantityLabel: q.panelQty.toString(),
           quantity: q.panelQty,
           unitPrice: q.panelUnitPrice,
@@ -30,11 +41,12 @@ class QuotationCalculator {
 
     // 2. Solar Inverter (only if qty > 0)
     if (q.inverterQty > 0) {
+      final description = selectedInverter?.fullDescription ?? q.inverterMake ?? '-';
       allLines.add(
         QuotationLine(
           serialNo: 0,
           item: 'Solar Inverter',
-          makeDescription: q.inverterMake ?? '-',
+          makeDescription: description,
           quantityLabel: q.inverterQty.toString(),
           quantity: q.inverterQty,
           unitPrice: q.inverterUnitPrice,
@@ -45,11 +57,12 @@ class QuotationCalculator {
 
     // 3. Battery (only if qty > 0)
     if (q.batteryQty > 0) {
+      final description = selectedBattery?.fullDescription ?? q.batteryMake ?? '-';
       allLines.add(
         QuotationLine(
           serialNo: 0,
           item: 'Battery',
-          makeDescription: q.batteryMake ?? '-',
+          makeDescription: description,
           quantityLabel: q.batteryQty.toString(),
           quantity: q.batteryQty,
           unitPrice: q.batteryUnitPrice,
@@ -60,11 +73,27 @@ class QuotationCalculator {
 
     // 4. Mounting Structure (only if qty > 0)
     if (q.mountingQty > 0) {
+      // Build description without the structure name
+      String description = '';
+      if (selectedStructure != null) {
+        // Combine description and material details only
+        if (selectedStructure.description.isNotEmpty) {
+          description = selectedStructure.description;
+        }
+        if (selectedStructure.materialDetails.isNotEmpty) {
+          if (description.isNotEmpty) description += ' · ';
+          description += selectedStructure.materialDetails;
+        }
+      }
+      if (description.isEmpty) {
+        description = q.mountingType ?? '-';
+      }
+      
       allLines.add(
         QuotationLine(
           serialNo: 0,
-          item: q.mountingType,
-          makeDescription: mountingDesc,
+          item: q.mountingType ?? 'Mounting Structure',
+          makeDescription: description,
           quantityLabel: q.mountingQty.toString(),
           quantity: q.mountingQty,
           unitPrice: q.mountingUnitPrice,
@@ -73,40 +102,29 @@ class QuotationCalculator {
       );
     }
 
-// 5. Balance of System (only if price > 0)
-if (q.bosUnitPrice > 0) {
-  // Get BOS description from service using bosId
-  String bosDescription = CatalogData.balanceOfSystemDescription;
-  
-  if (q.bosId != null && q.bosId!.isNotEmpty) {
-    final bosRecord = AdminDataService.instance.activeBosRecords
-        .where((r) => r.id == q.bosId)
-        .firstOrNull;
-    if (bosRecord != null) {
-      bosDescription = bosRecord.description;
+    // 5. Balance of System (only if price > 0)
+    if (q.bosUnitPrice > 0) {
+      String bosDescription = CatalogData.balanceOfSystemDescription;
+      final bosRecords = AdminDataService.instance.activeBosRecords;
+      if (q.bosId != null && q.bosId!.isNotEmpty) {
+        final bosRecord = bosRecords.where((r) => r.id == q.bosId).firstOrNull;
+        if (bosRecord != null) {
+          bosDescription = bosRecord.description;
+        }
+      } else if (bosRecords.isNotEmpty) {
+        bosDescription = bosRecords.first.description;
+      }
+      allLines.add(
+        QuotationLine(
+          serialNo: 0,
+          item: 'Balance of System',
+          makeDescription: bosDescription,
+          quantityLabel: 'Est',
+          unitPrice: q.bosUnitPrice,
+          lineTotal: q.bosUnitPrice,
+        ),
+      );
     }
-  } else {
-    // If no bosId selected, use the first active BOS
-    final firstBos = AdminDataService.instance.activeBosRecords.firstOrNull;
-    if (firstBos != null) {
-      bosDescription = firstBos.description;
-    }
-  }
-  
-  // Replace newlines with \n for proper display in PDF
-  // The description already has \n characters from the input
-  
-  allLines.add(
-    QuotationLine(
-      serialNo: 0,
-      item: 'Balance of System',
-      makeDescription: bosDescription,  // Contains \n for line breaks
-      quantityLabel: 'Est',
-      unitPrice: q.bosUnitPrice,
-      lineTotal: q.bosUnitPrice,
-    ),
-  );
-}
 
     // 6. Earthing (only if qty > 0)
     if (q.earthingQty > 0) {
@@ -161,28 +179,27 @@ if (q.bosUnitPrice > 0) {
   static List<String> warranties(QuotationDraft q) {
     final items = <String>[];
 
+    // 1. Solar Panels Warranty
     if (q.panelQty > 0) {
-      items.add('Solar Panels- 12 years replaceable- 25 years life');
+      items.add('Solar Panels - 12 years replaceable - 25 years life');
     }
 
-    final inverter = q.inverterMake ?? '';
-    if (inverter.isNotEmpty && q.inverterQty > 0) {
-      final lower = inverter.toLowerCase();
-      if (lower.contains('ip66')) {
-        items.add('Inverter- 5 years');
-      } else if (lower.contains('ip54')) {
-        items.add('Inverter- 3 years');
-      }
+    // 2. Solar Inverter Warranty - Uses the user input field
+    if (q.inverterQty > 0 && q.inverterWarranty.isNotEmpty) {
+      items.add('Inverter - ${q.inverterWarranty} years');
+    } else if (q.inverterQty > 0) {
+      // Fallback to default if empty
+      items.add('Inverter - 3 years');
     }
 
-    // Battery warranty - only if battery qty > 0
-    if (q.batteryQty > 0) {
-      final warrantyText = q.batteryWarranty.trim().isEmpty 
-          ? 'Battery - 5 years' 
-          : 'Battery - ${q.batteryWarranty.trim()} years';
-      items.add(warrantyText);
+    // 3. Battery Warranty
+    if (q.batteryQty > 0 && q.batteryWarranty.isNotEmpty) {
+      items.add('Battery - ${q.batteryWarranty} years');
+    } else if (q.batteryQty > 0) {
+      items.add('Battery - 5 years');
     }
 
+    // 4. Workmanship Warranty
     if (q.installationUnitPrice > 0) {
       items.add('Workmanship - 2 year');
     }

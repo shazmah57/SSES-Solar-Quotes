@@ -11,39 +11,31 @@ class QuotationDraft {
   final DateTime expiryDate;
   final String projectDescription;
 
-  // Solar Panels
   final String? panelMake;
   final int panelQty;
   final int panelUnitPrice;
 
-  // Inverter
   final String? inverterMake;
   final int inverterQty;
   final int inverterUnitPrice;
+  final String inverterWarranty; // NEW
 
-  // Battery
   final String? batteryMake;
   final int batteryQty;
   final int batteryUnitPrice;
   final String batteryWarranty;
 
-  // Mounting Structure
-  final String mountingType;
+  final String? mountingType;
   final int mountingQty;
   final int mountingUnitPrice;
 
-  // Balance of System
   final int bosUnitPrice;
-  final String? bosId;  // ← NEW: BOS ID for selected template
+  final String? bosId;
 
-  // Earthing
   final int earthingQty;
   final int earthingUnitPrice;
 
-  // Installation & Transport
   final int installationUnitPrice;
-
-  // Discount
   final int discountedPrice;
 
   const QuotationDraft({
@@ -60,17 +52,18 @@ class QuotationDraft {
     this.inverterMake,
     this.inverterQty = 0,
     this.inverterUnitPrice = 0,
+    this.inverterWarranty = '3', // NEW
     this.batteryMake,
     this.batteryQty = 0,
     this.batteryUnitPrice = 0,
     this.batteryWarranty = '5',
-    this.mountingType = '',
+    this.mountingType,
     this.mountingQty = 0,
     this.mountingUnitPrice = 0,
     this.bosUnitPrice = 0,
     this.bosId,
     this.earthingQty = 0,
-    this.earthingUnitPrice = 30000,
+    this.earthingUnitPrice = 0,
     this.installationUnitPrice = 0,
     this.discountedPrice = 0,
   });
@@ -81,17 +74,69 @@ class QuotationDraft {
 
   List<String> get warranties => QuotationCalculator.warranties(this);
 
-  bool get hasDiscount => discountedPrice > 0;
+  Map<String, dynamic> toJson() {
+    return {
+      'quotedTo': quotedTo,
+      'contactNo': contactNo,
+      'email': email,
+      'quotationNumber': quotationNumber,
+      'issueDate': issueDate.toIso8601String(),
+      'expiryDate': expiryDate.toIso8601String(),
+      'projectDescription': projectDescription,
+      'panelMake': panelMake,
+      'panelQty': panelQty,
+      'panelUnitPrice': panelUnitPrice,
+      'inverterMake': inverterMake,
+      'inverterQty': inverterQty,
+      'inverterUnitPrice': inverterUnitPrice,
+      'inverterWarranty': inverterWarranty, // NEW
+      'batteryMake': batteryMake,
+      'batteryQty': batteryQty,
+      'batteryUnitPrice': batteryUnitPrice,
+      'batteryWarranty': batteryWarranty,
+      'mountingType': mountingType,
+      'mountingQty': mountingQty,
+      'mountingUnitPrice': mountingUnitPrice,
+      'bosUnitPrice': bosUnitPrice,
+      'bosId': bosId,
+      'earthingQty': earthingQty,
+      'earthingUnitPrice': earthingUnitPrice,
+      'installationUnitPrice': installationUnitPrice,
+      'discountedPrice': discountedPrice,
+    };
+  }
 
-  int get savings => hasDiscount ? grandTotal - discountedPrice : 0;
-
-  bool get hasPanels => panelQty > 0;
-  bool get hasInverter => inverterQty > 0;
-  bool get hasBattery => batteryQty > 0;
-  bool get hasMounting => mountingQty > 0;
-  bool get hasBos => bosUnitPrice > 0;
-  bool get hasEarthing => earthingQty > 0;
-  bool get hasInstallation => installationUnitPrice > 0;
+  factory QuotationDraft.fromJson(Map<String, dynamic> json) {
+    return QuotationDraft(
+      quotedTo: json['quotedTo'] ?? '',
+      contactNo: json['contactNo'] ?? '',
+      email: json['email'] ?? '',
+      quotationNumber: json['quotationNumber'] ?? '',
+      issueDate: DateTime.parse(json['issueDate']),
+      expiryDate: DateTime.parse(json['expiryDate']),
+      projectDescription: json['projectDescription'] ?? '',
+      panelMake: json['panelMake'],
+      panelQty: json['panelQty'] ?? 0,
+      panelUnitPrice: json['panelUnitPrice'] ?? 0,
+      inverterMake: json['inverterMake'],
+      inverterQty: json['inverterQty'] ?? 0,
+      inverterUnitPrice: json['inverterUnitPrice'] ?? 0,
+      inverterWarranty: json['inverterWarranty'] ?? '3', // NEW
+      batteryMake: json['batteryMake'],
+      batteryQty: json['batteryQty'] ?? 0,
+      batteryUnitPrice: json['batteryUnitPrice'] ?? 0,
+      batteryWarranty: json['batteryWarranty'] ?? '5',
+      mountingType: json['mountingType'],
+      mountingQty: json['mountingQty'] ?? 0,
+      mountingUnitPrice: json['mountingUnitPrice'] ?? 0,
+      bosUnitPrice: json['bosUnitPrice'] ?? 0,
+      bosId: json['bosId'],
+      earthingQty: json['earthingQty'] ?? 0,
+      earthingUnitPrice: json['earthingUnitPrice'] ?? 0,
+      installationUnitPrice: json['installationUnitPrice'] ?? 0,
+      discountedPrice: json['discountedPrice'] ?? 0,
+    );
+  }
 
   QuotationDraft copyWith({
     String? quotedTo,
@@ -107,6 +152,7 @@ class QuotationDraft {
     String? inverterMake,
     int? inverterQty,
     int? inverterUnitPrice,
+    String? inverterWarranty,
     String? batteryMake,
     int? batteryQty,
     int? batteryUnitPrice,
@@ -135,6 +181,7 @@ class QuotationDraft {
       inverterMake: inverterMake ?? this.inverterMake,
       inverterQty: inverterQty ?? this.inverterQty,
       inverterUnitPrice: inverterUnitPrice ?? this.inverterUnitPrice,
+      inverterWarranty: inverterWarranty ?? this.inverterWarranty,
       batteryMake: batteryMake ?? this.batteryMake,
       batteryQty: batteryQty ?? this.batteryQty,
       batteryUnitPrice: batteryUnitPrice ?? this.batteryUnitPrice,
@@ -148,70 +195,6 @@ class QuotationDraft {
       earthingUnitPrice: earthingUnitPrice ?? this.earthingUnitPrice,
       installationUnitPrice: installationUnitPrice ?? this.installationUnitPrice,
       discountedPrice: discountedPrice ?? this.discountedPrice,
-    );
-  }
-
-  Map<String, dynamic> toJson() => {
-    'quotedTo': quotedTo,
-    'contactNo': contactNo,
-    'email': email,
-    'quotationNumber': quotationNumber,
-    'issueDate': issueDate.toIso8601String(),
-    'expiryDate': expiryDate.toIso8601String(),
-    'projectDescription': projectDescription,
-    'panelMake': panelMake,
-    'panelQty': panelQty,
-    'panelUnitPrice': panelUnitPrice,
-    'inverterMake': inverterMake,
-    'inverterQty': inverterQty,
-    'inverterUnitPrice': inverterUnitPrice,
-    'batteryMake': batteryMake,
-    'batteryQty': batteryQty,
-    'batteryUnitPrice': batteryUnitPrice,
-    'batteryWarranty': batteryWarranty,
-    'mountingType': mountingType,
-    'mountingQty': mountingQty,
-    'mountingUnitPrice': mountingUnitPrice,
-    'bosUnitPrice': bosUnitPrice,
-    'bosId': bosId,
-    'earthingQty': earthingQty,
-    'earthingUnitPrice': earthingUnitPrice,
-    'installationUnitPrice': installationUnitPrice,
-    'discountedPrice': discountedPrice,
-  };
-
-  factory QuotationDraft.fromJson(Map<String, dynamic> json) {
-    return QuotationDraft(
-      quotedTo: json['quotedTo'] as String? ?? '',
-      contactNo: json['contactNo'] as String? ?? '',
-      email: json['email'] as String? ?? '',
-      quotationNumber: json['quotationNumber'] as String? ?? '',
-      issueDate: json['issueDate'] != null
-          ? DateTime.parse(json['issueDate'] as String)
-          : DateTime.now(),
-      expiryDate: json['expiryDate'] != null
-          ? DateTime.parse(json['expiryDate'] as String)
-          : DateTime.now().add(const Duration(days: 7)),
-      projectDescription: json['projectDescription'] as String? ?? '',
-      panelMake: json['panelMake'] as String?,
-      panelQty: json['panelQty'] as int? ?? 0,
-      panelUnitPrice: json['panelUnitPrice'] as int? ?? 0,
-      inverterMake: json['inverterMake'] as String?,
-      inverterQty: json['inverterQty'] as int? ?? 0,
-      inverterUnitPrice: json['inverterUnitPrice'] as int? ?? 0,
-      batteryMake: json['batteryMake'] as String?,
-      batteryQty: json['batteryQty'] as int? ?? 0,
-      batteryUnitPrice: json['batteryUnitPrice'] as int? ?? 0,
-      batteryWarranty: json['batteryWarranty'] as String? ?? '5',
-      mountingType: json['mountingType'] as String? ?? '',
-      mountingQty: json['mountingQty'] as int? ?? 0,
-      mountingUnitPrice: json['mountingUnitPrice'] as int? ?? 0,
-      bosUnitPrice: json['bosUnitPrice'] as int? ?? 0,
-      bosId: json['bosId'] as String?,
-      earthingQty: json['earthingQty'] as int? ?? 0,
-      earthingUnitPrice: json['earthingUnitPrice'] as int? ?? 30000,
-      installationUnitPrice: json['installationUnitPrice'] as int? ?? 0,
-      discountedPrice: json['discountedPrice'] as int? ?? 0,
     );
   }
 }

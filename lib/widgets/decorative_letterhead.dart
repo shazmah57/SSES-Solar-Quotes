@@ -36,7 +36,7 @@ class DecorativeLetterhead extends StatelessWidget {
         fit: BoxFit.cover,
         width: double.infinity,
         height: double.infinity,
-        errorBuilder: (_, __, ___) => ColoredBox(color: Colors.grey.shade200),
+        errorBuilder: (_, _, _) => ColoredBox(color: Colors.grey.shade200),
       );
     }
     final file = File(branding.letterheadPath!);
@@ -45,7 +45,7 @@ class DecorativeLetterhead extends StatelessWidget {
       fit: BoxFit.cover,
       width: double.infinity,
       height: double.infinity,
-      errorBuilder: (_, __, ___) => ColoredBox(color: Colors.grey.shade200),
+      errorBuilder: (_, _, _) => ColoredBox(color: Colors.grey.shade200),
     );
   }
 

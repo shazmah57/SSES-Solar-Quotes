@@ -1143,8 +1143,8 @@ class _RecordTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         side: BorderSide(
           color: active
-              ? (isDark ? Colors.white.withOpacity(0.08) : Colors.grey.shade300)
-              : Colors.red.withOpacity(0.3),
+              ? (isDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.shade300)
+              : Colors.red.withValues(alpha: 0.3),
         ),
       ),
       child: ListTile(

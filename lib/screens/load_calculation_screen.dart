@@ -117,7 +117,7 @@ class _LoadCalculationScreenState extends State<LoadCalculationScreen> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
                             side: BorderSide(
-                              color: isDark ? Colors.white.withOpacity(0.06) : Colors.grey.withOpacity(0.2),
+                              color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.grey.withValues(alpha: 0.2),
                             ),
                           ),
                           child: Padding(
@@ -211,7 +211,7 @@ class _LoadCalculationScreenState extends State<LoadCalculationScreen> {
                           child: Container(
                             padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
                             decoration: BoxDecoration(
-                              color: isDark ? Colors.black.withOpacity(0.75) : Colors.white.withOpacity(0.85),
+                              color: isDark ? Colors.black.withValues(alpha: 0.75) : Colors.white.withValues(alpha: 0.85),
                               border: Border(
                                 top: BorderSide(
                                   color: isDark ? Colors.white10 : Colors.black12,

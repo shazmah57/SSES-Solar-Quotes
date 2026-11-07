@@ -36,3 +36,14 @@ flutter {
 if (file("google-services.json").exists()) {
     apply(plugin = "com.google.gms.google-services")
 }
+
+// Workaround for install_plugin namespace issue
+subprojects {
+    afterEvaluate {
+        if (project.name == "install_plugin") {
+            android {
+                namespace = "com.install.plugin"
+            }
+        }
+    }
+}
